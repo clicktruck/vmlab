@@ -39,7 +39,7 @@ This is the one place that says what is finished, what is half-finished, and wha
 | Named inputs, with secrets read only from the environment and sent as protected parameters | **Partial** | Tested, including that a secret never reaches the record. First live use is the `building-blocks` suite |
 | Private storage for files in and out, and for a script's whole output (Run Command alone keeps about 4 KB) | **Partial** | Tested with a fake. Not yet run live |
 | Fetching a source at one exact commit (the ref is turned into a commit id on your computer; the machine downloads that commit) | **Partial** | Tested with a fake GitHub. It also needs the machine to reach the internet, which is not yet known (below) |
-| Steps that run as an ordinary account (`run_as: user:NAME`) | **Partial** | Run 8: vmlab made the accounts and scripts ran as them, but Run Command starts them **without loading the account's profile**, which broke DPAPI. The step is now run through a scheduled task that logs the account on as a batch job, so the profile is loaded. Runs 9 and 10: **works on Windows Server 2025; on Windows 11 every such step timed out.** The task logs the account on but stays Queued and never starts the program. Cause unknown. The wrapper now sets every task setting, fails in a minute when a task never starts and reads the scheduler's log; Others report the same stall on client Windows until someone signs in at the screen ([research/03](docs/research/03-running-as-another-windows-user.md)). The `windows-task-probe` suite tries ten ways, four of them without Task Scheduler, then signs an account in and asks again |
+| Steps that run as an ordinary account (`run_as: user:NAME`), with the account's profile loaded | **Completed** | Run 12, on Windows 11 and Windows Server 2025, with nobody signed in. Client Windows holds a stored-password task until someone signs in, so vmlab starts the task with its conditions ignored ([research/03](docs/research/03-running-as-another-windows-user.md)). `admin` steps do not have a profile yet (below) |
 | `vmlab sweep`: delete anything vmlab made that is past its expiry | **Partial** | Tested with a fake. Not yet run against real leftovers |
 | Sign in with a device code (`just login`) | **Partial** | Works where the organisation allows it. At least one organisation's policy blocks it, so two other routes exist |
 | Sign in by copying your own browser sign-in in (`just adopt-login`) | **Completed** | Used for the live runs |
@@ -50,11 +50,11 @@ This is the one place that says what is finished, what is half-finished, and wha
 | Suite | The question it answers | Status |
 | --- | --- | --- |
 | [windows-acl](config/suites/windows-acl/suite.yaml) | What does Windows do with a file's access list, and which fix leaves exactly one entry? | **Completed**. Four runs; results in [research/02](docs/research/02-windows-file-access-lists.md) |
-| [network-probe](config/suites/network-probe/suite.yaml) | Can a machine reach GitHub, Docker, Microsoft and PyPI? | **Planned to run**: written, not yet run. Run it before anything that downloads |
+| [network-probe](config/suites/network-probe/suite.yaml) | Can a machine reach GitHub, Docker, Microsoft and PyPI? | **Partial**: yes on Windows 11 (run 11). Not yet run on Windows Server 2025 |
 | [building-blocks](config/suites/building-blocks/suite.yaml) | Do inputs, secrets, whole output, files in and out, a source fetch and a restart all work? | **Planned to run**: written, not yet run |
-| [windows-dpapi](config/suites/windows-dpapi/suite.yaml) | Does DPAPI protect a small secret for one user, and who else can open it? | **Partial**: **Completed on Windows Server 2025** (run 9: only the user can open the protected secret, before and after a restart). **Open on Windows 11**: its ordinary-account steps timed out |
-| [windows-task-probe](config/suites/windows-task-probe/suite.yaml) | Which way of starting a program as an ordinary Windows account gives it a loaded profile and working DPAPI? Ten ways, four without Task Scheduler, before and after an account is signed in at the screen | **Planned to run**: written, not yet run (the `windows-11-diagnose` run) |
-| [windows-credential-manager](config/suites/windows-credential-manager/suite.yaml) | Does Credential Manager keep a small secret for one user, and who else can read it? | **Planned to run**: written, not yet run. It runs as an ordinary account, so it probably meets the same missing-profile limit as the DPAPI run |
+| [windows-dpapi](config/suites/windows-dpapi/suite.yaml) | Does DPAPI protect a small secret for one user, and who else can open it? | **Completed** on both systems (run 12): only the user can open it, before and after a restart. The administrator is not yet in the test |
+| [windows-task-probe](config/suites/windows-task-probe/suite.yaml) | Which way of starting a program as an ordinary Windows account gives it a loaded profile and working DPAPI? Ten ways, four without Task Scheduler, before and after an account is signed in at the screen | **Completed** on Windows 11 (run 11); results in [research/03](docs/research/03-running-as-another-windows-user.md) |
+| [windows-credential-manager](config/suites/windows-credential-manager/suite.yaml) | Does Credential Manager keep a small secret for one user, and who else can read it? | **Completed** on both systems (run 13): the user reads it back, before and after a restart; another user and the system account find nothing; 2,560 bytes is the most it takes. The administrator is not yet in the test |
 | [windows-docker-desktop](config/suites/windows-docker-desktop/suite.yaml) | Can Docker Desktop be installed on Windows 11 and run a Linux container? Needs nested virtualization, which is not yet known to be available | **Planned to run**: written, not yet run. The installer's hash is empty on purpose, so the first run installs nothing and prints the hash it saw |
 
 ## Commands
@@ -75,9 +75,10 @@ These are not features; they are facts about Azure and Windows that decide what 
 
 | Question | Status | Answered by |
 | --- | --- | --- |
-| Can a machine vmlab makes reach the internet? Microsoft says new virtual networks have no implicit outbound route (read 2026-11-23); which API version the Azure CLI uses is not known | **Open** | `network-probe` |
+| Can a machine vmlab makes reach the internet? | **Answered for Windows 11: yes** | Run 11. Microsoft says new virtual networks will have no implicit way out, so this can change; the probe is the check |
 | Can Run Command start a script as an ordinary account with no desktop sign-in? | **Answered, with a catch** | Run 8: yes, it runs as the account, but with no profile loaded |
-| Does a scheduled task (the account logged on as a batch job) give a step a loaded profile? | **Answered for Server 2025: yes. Windows 11: no, so far** | Runs 9 and 10. The `windows-11-diagnose` run tries seven ways on Windows 11 and reads the Task Scheduler's own log |
+| Does a scheduled task (the account logged on as a batch job) give a step a loaded profile? | **Answered: yes on both systems.** On Windows 11 the task is held until someone signs in at the screen, unless it is started with its conditions ignored | Runs 9 and 11 |
+| Does vmlab's own wrapper, which starts the task with its conditions ignored, work on Windows 11 with nobody signed in, and still on Windows Server 2025? | **Answered: yes** | Run 12 |
 | Does Run Command's whole-output storage link work from a machine in a private subnet? Microsoft says same-region storage stays reachable | **Open** | `building-blocks` |
 | Can Docker Desktop run on a rented Windows 11 machine at all? | **Open** | `windows-docker-desktop` |
 
@@ -92,7 +93,9 @@ These are not features; they are facts about Azure and Windows that decide what 
 | More kinds of check on a step (beyond exit code and output text) | **Open** | |
 | Run the machines of one run side by side instead of one after another | **Open** | Slower but simpler today |
 | Stop waiting in 30-second jumps: start a step without waiting and check its state every few seconds | **Planned** | Measured: every send step takes a multiple of about 31 seconds, so each wastes up to 30 ([research/03](docs/research/03-running-as-another-windows-user.md)). To be tried by itself on `building-blocks`, never during a diagnosis |
-| Replace the scheduled task with a direct launch for `user:NAME` steps | **Open** | Depends on what the probe shows |
+| Replace the scheduled task with a direct launch for `user:NAME` steps | **Not needed now** | The task works on both systems (run 12). The probe showed a direct launch also works on Windows 11 (run 11); it stays the fallback |
+| Give `admin` steps a loaded profile too, by sending them through the same wrapper | **Planned** | Today an admin step uses Azure's own run-as, which loads no profile (run 8). Until then the DPAPI and Credential Manager suites leave the administrator out |
+| Sign an account in at the screen automatically, for programs that need a real desktop | **Partial** | Worked in the probe on Windows 11 (run 11: signed in 6 seconds after a restart). Not yet something a suite can ask for by name. Docker Desktop is likely to need it |
 | A step that needs an earlier step: skip it, as a gap, when that one failed | **Planned** | Run 9 spent minutes on steps that could not pass |
 | Keep one machine up and send it scripts one at a time (`up`, `run`, `down`) | **Planned** | The fallback if a question does not settle in one more run: it turns a 30-minute loop into a 1-minute one |
 | Spot pricing for the machines | **Open** | Cheaper, but a machine can be taken back mid-run. Not tried |

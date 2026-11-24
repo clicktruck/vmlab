@@ -61,6 +61,9 @@ test('no task setting is left to a default that can hold a task back, and a task
   assert.match(w, /\$done = \$started -and \(\$state -eq 'Ready'\)/);
   assert.match(w, /Set-Content -Path "\$d\\started\.txt"/);
   // The Task Scheduler's own log is switched on before the task starts, and read when it does not.
-  assert.ok(w.indexOf('wevtutil.exe sl') < w.indexOf('Start-ScheduledTask'));
+  assert.ok(w.indexOf('wevtutil.exe sl') < w.indexOf('.RunEx('));
+  // Started with "ignore the conditions" (flag 2): client Windows otherwise holds the task until someone signs in.
+  assert.match(w, /GetFolder\('\\'\)\.GetTask\(\$task\)\.RunEx\(\$null, 2, 0, \$null\)/);
+  assert.equal(w.includes('Start-ScheduledTask'), false);
   assert.match(w, /Microsoft-Windows-TaskScheduler\/Operational/);
 });

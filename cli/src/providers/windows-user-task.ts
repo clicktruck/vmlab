@@ -98,7 +98,12 @@ function Show-Why {
 
 $code = 1
 try {
-  Start-ScheduledTask -TaskName $task
+  # Client Windows holds a stored-password task in its queue until someone has signed in at the screen (run 11: Queued
+  # with nobody signed in, started at once after a sign-in). Started through the scheduler's own interface with
+  # "ignore the conditions" (flag 2), the same task ran in a second with nobody signed in.
+  $scheduler = New-Object -ComObject Schedule.Service
+  $scheduler.Connect()
+  [void]$scheduler.GetFolder('\\').GetTask($task).RunEx($null, 2, 0, $null)
   $began = Get-Date
   $deadline = $began.AddSeconds($TimeoutSeconds)
   # "Started" means Windows was seen running the task, or the runner left its mark. A task that reads Ready before it
