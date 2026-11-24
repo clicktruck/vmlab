@@ -1,0 +1,3 @@
+# The Azure CLI, installed into its own virtual environment in the image (cli/Dockerfile).
+# One line, one exact version: Dependabot proposes a newer one. Checked 2026-11-23: 2.93.0 was the latest on PyPI.
+azure-cli==2.93.0

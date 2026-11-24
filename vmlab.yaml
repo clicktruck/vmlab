@@ -1,0 +1,46 @@
+# vmlab.yaml: the defaults.
+# Your own changes go in vmlab.local.yaml, which git ignores and which wins over this file.
+# Every setting can also be given on the command line or as an environment variable; the command line wins.
+# The names are decided (docs/decisions.md D8); the contents are a design for review.
+
+version: 1
+
+# Where the declarative parts live. Later directories win over earlier ones, so a project can keep its own
+# profiles, suites, sources and runs next to its code and name that folder on the command line:
+#   vmlab test my-run --config-dir ../my-project/vmlab
+config_dirs:
+  - config
+
+provider:
+  name: azure               # azure, or dry (makes nothing; used by tests)
+  azure:
+    subscription: null      # null: use the one you are signed in to (`just login`)
+    location: eastus          # East US offered Standard_B2s_v2 with no restriction on 2026-11-23; East US 2 restricted some zones (docs/06)
+    resource_group_prefix: vmlab
+
+# The profile to use when a run does not name one. A profile is a machine description in config/profiles/.
+default_profile: windows-11
+
+lifetime:
+  ttl_minutes: 60           # written on every object as an expiry tag; `vmlab sweep` deletes past it
+  delete: always            # always, on_success, or never (vmlab then says how to delete it by hand)
+
+budget:
+  max_estimated_usd: 1.00   # `plan` refuses to go on above this
+
+# Statements only you can make. vmlab cannot check them: it refuses to do what needs one until you set it to true,
+# and it writes what you set, and your note, into every run record. Set them in vmlab.local.yaml, once.
+attestations:
+  windows_client_licence:
+    holds_eligible_licence: false   # true only when Microsoft has confirmed your licence covers Windows 11 in Azure
+    reference: ""                   # a case number, or an email's date and subject: something you can show an auditor
+    note: ""                        # who confirmed it, how, and when (kept in the run record)
+
+# What a run may fetch and run. Deny by default: a source is used only if a rule here allows it (docs/03).
+policy:
+  sources:
+    allow: []               # for example ["github.com/your-name/*"]; set it in vmlab.local.yaml
+    refs: ["main", "refs/pull/*/head", "*"]   # which refs of an allowed source may be tested
+
+tags:
+  purpose: vmlab-test

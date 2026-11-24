@@ -1,0 +1,106 @@
+# vmlab: what stays out of git
+#
+# How to read this file
+#   - Git treats "#" as a comment only at the START of a line, so every note sits on its own line above its pattern.
+#   - A leading "/" anchors a pattern to the repository root. Without it, the pattern matches at any depth.
+#   - A trailing "/" matches folders only.
+#   - To see which rule hides a path:   git check-ignore -v PATH
+#   - To list tracked files a rule now hides:   git ls-files -ci --exclude-standard
+#
+# The sections run from "never commit this" down to "just clutter".
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# 1. Secrets and sign-ins. Never safe to commit, not even to a private repo.
+# ---------------------------------------------------------------------------------------------------------------
+
+# Environment files. Tokens and passwords are read from the environment, never from a file in the repo.
+.env
+.env.*
+# ...except a template that holds only names and made-up values, if one is ever added.
+!.env.example
+
+# Keys and certificates.
+*.pem
+*.key
+*.pfx
+*.p12
+
+# Azure CLI sign-in state. vmlab keeps the real ones in a Docker volume (azure-token), outside the repo and
+# outside the image. These patterns catch a copy that lands here by mistake, for example `just adopt-login` run
+# by hand with the wrong folder.
+.azure/
+azureProfile.json
+msal_token_cache.json
+msal_http_cache.bin
+service_principal_entries.json
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# 2. Your own settings and the records of what you ran. Local to your computer.
+# ---------------------------------------------------------------------------------------------------------------
+
+# Your overrides of vmlab.yaml, such as your licence statement and its case number. vmlab.yaml holds the defaults.
+/vmlab.local.yaml
+
+# Run records: the exact values used, every step, every output, and any files brought back from a machine. They
+# can hold a project's own output, so they are never committed.
+/runs/
+
+# Anything you save while trying something out by hand.
+/scratch/
+/tmp/
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# 3. Things the tools make. They are rebuilt from the sources.
+# ---------------------------------------------------------------------------------------------------------------
+
+# Node packages. The code runs from source in Docker, so there is no build folder to commit.
+node_modules/
+.pnpm-store/
+
+# TypeScript's incremental build record, and any build or test output.
+*.tsbuildinfo
+dist/
+build/
+coverage/
+.nyc_output/
+
+# Installers and archives fetched while trying something out. A suite names its downloads in its own script, with
+# a pinned hash, so none of these belongs in the repo.
+*.exe
+*.msi
+*.msix
+*.zip
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# 4. Editors, assistants and the operating system. Personal to whoever is working here.
+# ---------------------------------------------------------------------------------------------------------------
+
+# Editors.
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Claude Code: local settings and working copies. (CLAUDE.md and AGENTS.md ARE committed.)
+.claude/settings.local.json
+.claude/worktrees/
+
+# macOS.
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows.
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Logs.
+*.log
+npm-debug.log*
+pnpm-debug.log*

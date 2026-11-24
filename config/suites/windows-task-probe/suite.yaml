@@ -1,0 +1,38 @@
+# Why does a scheduled task for an ordinary account stay Queued on Windows 11 and never start the program, when the same
+# task runs fine on Windows Server 2025? (Written; not yet run live.) It tries several ways of starting a tiny program
+# as an ordinary account and prints, for each, whether it ran and how long it took. It names no project.
+name: windows-task-probe
+description: Tries ten ways of starting a program as an ordinary Windows account (scheduled tasks with and without a stored password, with default and explicit settings, through schtasks and with conditions ignored, and four direct launches with no task at all), then signs a second account in at the screen and tries again. Each way's program reports who it is, whether a profile is loaded and whether DPAPI works.
+os: windows
+needs:
+  sources: []
+
+steps:
+  # Each way prints RAN or NOT RAN in a SUMMARY. A way that does not run is the finding, not a failure, so the
+  # only check on these steps is that the script itself got to the end.
+  - id: probe
+    script: 01-probe.ps1
+    run_as: [system]
+    timeout_seconds: 900
+    expect:
+      exit_code: 0
+      output_contains: ["SUMMARY", "DONE"]
+  # Reports say client Windows holds a stored-password task until someone has signed in at the screen. Make that
+  # happen with nobody there (a second ordinary account signs in by itself after a restart), then ask again.
+  - id: autologon
+    script: 02-autologon.ps1
+    run_as: [system]
+    timeout_seconds: 300
+    expect:
+      exit_code: 0
+      output_contains: ["AUTOLOGON SET", "DONE"]
+  - id: restart
+    kind: reboot
+    timeout_seconds: 900
+  - id: after-logon
+    script: 03-after-logon.ps1
+    run_as: [system]
+    timeout_seconds: 900
+    expect:
+      exit_code: 0
+      output_contains: ["SUMMARY", "DONE"]

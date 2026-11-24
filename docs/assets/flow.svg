@@ -1,0 +1,150 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 540" width="1000" height="540" role="img" aria-labelledby="t d">
+  <title id="t">How a vmlab test runs</title>
+  <desc id="d">Six steps in a row. On your computer: vmlab shows a plan with cost, and you say yes. In Azure: a fresh Windows machine is rented, your scripts run on it, the output and files come back, and the machine is deleted. Then a report says pass, fail or gap.</desc>
+  <style>
+    :root { --bg:#f8fafc; --text:#0f172a; --muted:#475569; --box:#ffffff; --line:#94a3b8; --hot:#dbeafe; --hotline:#1d4ed8;
+            --local:#e0f2fe; --localline:#7dd3fc; --cloud:#ffedd5; --cloudline:#fdba74; --num:#1d4ed8; --numtext:#ffffff;
+            --pass:#15803d; --fail:#b91c1c; --gap:#b45309; --chip:#ffffff; --dot:#1d4ed8; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg:#0b1220; --text:#e2e8f0; --muted:#a8b4c8; --box:#111a2c; --line:#475569; --hot:#1e3a8a; --hotline:#93c5fd;
+              --local:#0c2a3f; --localline:#1d6a96; --cloud:#3a2312; --cloudline:#b45309; --num:#93c5fd; --numtext:#0b1220;
+              --pass:#4ade80; --fail:#f87171; --gap:#fbbf24; --chip:#111a2c; --dot:#93c5fd; }
+    }
+    text { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: var(--text); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .title { font-size: 26px; font-weight: 700; }
+    .sub { font-size: 15px; fill: var(--muted); }
+    .band { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; fill: var(--muted); }
+    .st { font-size: 18px; font-weight: 700; }
+    .d { font-size: 13px; }
+    .tm { font-size: 12px; fill: var(--muted); }
+    .n { font-size: 15px; font-weight: 700; fill: var(--numtext); text-anchor: middle; }
+    .chip-t { font-size: 14px; font-weight: 600; }
+    .chip-x { font-size: 12px; fill: var(--muted); text-anchor: end; }
+    .foot { font-size: 13px; fill: var(--muted); text-anchor: middle; }
+    .box { fill: var(--box); stroke: var(--line); stroke-width: 1.5; }
+    .num { fill: var(--num); }
+    .track { stroke: var(--line); stroke-width: 2; stroke-dasharray: 2 6; stroke-linecap: round; }
+    .tick { fill: var(--line); }
+    .dot { fill: var(--dot); animation: travel 14s ease-in-out infinite; }
+    .hot { animation: hot 14s infinite; animation-fill-mode: backwards; }
+    @keyframes hot {
+      0%   { fill: var(--box); stroke: var(--line); }
+      2%   { fill: var(--hot); stroke: var(--hotline); }
+      13%  { fill: var(--hot); stroke: var(--hotline); }
+      15%  { fill: var(--box); stroke: var(--line); }
+      100% { fill: var(--box); stroke: var(--line); }
+    }
+    @keyframes travel {
+      0%    { transform: translateX(0);     opacity: 1; }
+      11%   { transform: translateX(0);     opacity: 1; }
+      14.3% { transform: translateX(160px); }
+      25.5% { transform: translateX(160px); }
+      28.6% { transform: translateX(320px); }
+      39.8% { transform: translateX(320px); }
+      42.9% { transform: translateX(480px); }
+      54%   { transform: translateX(480px); }
+      57.1% { transform: translateX(640px); }
+      68.3% { transform: translateX(640px); }
+      71.4% { transform: translateX(800px); opacity: 1; }
+      92%   { transform: translateX(800px); opacity: 1; }
+      96%   { transform: translateX(800px); opacity: 0; }
+      97%   { transform: translateX(0);     opacity: 0; }
+      100%  { transform: translateX(0);     opacity: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .dot, .hot { animation: none; }
+      .dot { opacity: 0; }
+    }
+  </style>
+
+  <rect width="1000" height="540" rx="16" fill="var(--bg)"/>
+  <text x="500" y="48" text-anchor="middle" class="title">A real Windows machine. A few minutes. Then gone.</text>
+  <text x="500" y="76" text-anchor="middle" class="sub">One command: <tspan class="mono">vmlab test &lt;run&gt;</tspan></text>
+
+  <!-- the two places things happen -->
+  <rect x="20" y="100" width="320" height="236" rx="12" fill="var(--local)" stroke="var(--localline)"/>
+  <rect x="340" y="100" width="640" height="236" rx="12" fill="var(--cloud)" stroke="var(--cloudline)"/>
+  <text x="36" y="123" class="band">ON YOUR COMPUTER</text>
+  <text x="356" y="123" class="band">IN AZURE, IN ITS OWN RESOURCE GROUP</text>
+
+  <!-- 1. Plan -->
+  <rect class="box hot" style="animation-delay:0s" x="30" y="150" width="140" height="170" rx="10"/>
+  <circle class="num" cx="56" cy="180" r="14"/>
+  <text class="n" x="56" y="185">1</text>
+  <text class="st" x="78" y="186">Plan</text>
+  <text class="d" x="44" y="228">Cost and time</text>
+  <text class="d" x="44" y="248">shown first.</text>
+  <text class="tm" x="44" y="306">seconds</text>
+  <!-- 2. You say yes -->
+  <rect class="box hot" style="animation-delay:2s" x="190" y="150" width="140" height="170" rx="10"/>
+  <circle class="num" cx="216" cy="180" r="14"/>
+  <text class="n" x="216" y="185">2</text>
+  <text class="st" x="238" y="186">Your yes</text>
+  <text class="d" x="204" y="228">Nothing is made</text>
+  <text class="d" x="204" y="248">without it.</text>
+  <text class="tm" x="204" y="306">your call</text>
+  <!-- 3. Rent -->
+  <rect class="box hot" style="animation-delay:4s" x="350" y="150" width="140" height="170" rx="10"/>
+  <circle class="num" cx="376" cy="180" r="14"/>
+  <text class="n" x="376" y="185">3</text>
+  <text class="st" x="398" y="186">Rent</text>
+  <text class="d" x="364" y="228">A fresh Windows 11</text>
+  <text class="d" x="364" y="248">or Server 2025.</text>
+  <text class="d" x="364" y="268">No public address.</text>
+  <text class="tm" x="364" y="306">1.5 to 3 min</text>
+  <!-- 4. Test -->
+  <rect class="box hot" style="animation-delay:6s" x="510" y="150" width="140" height="170" rx="10"/>
+  <circle class="num" cx="536" cy="180" r="14"/>
+  <text class="n" x="536" y="185">4</text>
+  <text class="st" x="558" y="186">Test</text>
+  <text class="d" x="524" y="228">Your scripts run,</text>
+  <text class="d" x="524" y="248">with restarts and</text>
+  <text class="d" x="524" y="268">files in and out.</text>
+  <text class="tm" x="524" y="306">minutes</text>
+  <!-- 5. Collect -->
+  <rect class="box hot" style="animation-delay:8s" x="670" y="150" width="140" height="170" rx="10"/>
+  <circle class="num" cx="696" cy="180" r="14"/>
+  <text class="n" x="696" y="185">5</text>
+  <text class="st" x="718" y="186">Collect</text>
+  <text class="d" x="684" y="228">Whole output and</text>
+  <text class="d" x="684" y="248">files come back.</text>
+  <text class="tm" x="684" y="306">seconds</text>
+  <!-- 6. Delete -->
+  <rect class="box hot" style="animation-delay:10s" x="830" y="150" width="140" height="170" rx="10"/>
+  <circle class="num" cx="856" cy="180" r="14"/>
+  <text class="n" x="856" y="185">6</text>
+  <text class="st" x="878" y="186">Delete</text>
+  <text class="d" x="844" y="228">Always, even when</text>
+  <text class="d" x="844" y="248">a test fails.</text>
+  <text class="tm" x="844" y="306">2 to 3 min</text>
+
+  <!-- the travelling dot -->
+  <line class="track" x1="100" y1="362" x2="900" y2="362"/>
+  <circle class="tick" cx="100" cy="362" r="4"/>
+  <circle class="tick" cx="260" cy="362" r="4"/>
+  <circle class="tick" cx="420" cy="362" r="4"/>
+  <circle class="tick" cx="580" cy="362" r="4"/>
+  <circle class="tick" cx="740" cy="362" r="4"/>
+  <circle class="tick" cx="900" cy="362" r="4"/>
+  <circle class="dot" cx="100" cy="362" r="9"/>
+
+  <!-- the report -->
+  <rect class="box hot" style="animation-delay:12s" x="30" y="390" width="940" height="106" rx="12"/>
+  <text class="st" x="50" y="422">The report</text>
+  <text class="tm" x="190" y="422">One table: each suite, on each system. A step that did not run is never counted as a pass.</text>
+  <rect x="50" y="440" width="290" height="40" rx="8" fill="var(--chip)" stroke="var(--line)"/>
+  <circle cx="70" cy="460" r="6" fill="var(--pass)"/>
+  <text class="chip-t" x="86" y="465">PASS: every check held</text>
+  <text class="chip-x mono" x="328" y="465">exit 0</text>
+  <rect x="355" y="440" width="290" height="40" rx="8" fill="var(--chip)" stroke="var(--line)"/>
+  <circle cx="375" cy="460" r="6" fill="var(--fail)"/>
+  <text class="chip-t" x="391" y="465">FAIL: a check did not hold</text>
+  <text class="chip-x mono" x="633" y="465">exit 1</text>
+  <rect x="660" y="440" width="290" height="40" rx="8" fill="var(--chip)" stroke="var(--line)"/>
+  <circle cx="680" cy="460" r="6" fill="var(--gap)"/>
+  <text class="chip-t" x="696" y="465">GAP: not run, never a pass</text>
+  <text class="chip-x mono" x="938" y="465">exit 4</text>
+
+  <text class="foot" x="500" y="522">Nothing is made without a plan you have seen and a yes. Everything made is deleted, and anything left is found by sweep.</text>
+</svg>

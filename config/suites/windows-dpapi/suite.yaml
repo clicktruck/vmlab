@@ -1,0 +1,54 @@
+# Does Windows DPAPI protect a small secret the way its documentation says, from a program with no desktop?
+# (Written; not yet run live.) It names no project. The checks below are what the documentation leads us to expect;
+# a check that fails is a finding, and the output is kept either way.
+name: windows-dpapi
+description: Protects a made-up secret as one ordinary user, then tries to open it as the same user, another ordinary user and the system account, before and after a restart. (The administrator is left out until admin steps run with a loaded profile.)
+os: windows
+needs:
+  sources: []
+
+steps:
+  - id: setup
+    script: 01-setup.ps1
+    run_as: [system]
+    timeout_seconds: 300
+    expect:
+      exit_code: 0
+      output_contains: ["DONE"]
+      output_not_contains: ["FAIL"]
+  - id: protect-as-alice
+    script: 02-protect.ps1
+    run_as: ["user:alice"]
+    timeout_seconds: 300
+    expect:
+      exit_code: 0
+      output_contains: ["ROUNDTRIP: ok", "DONE"]
+      output_not_contains: ["FAIL"]
+  - id: alice-reads-her-own
+    script: 03-read.ps1
+    run_as: ["user:alice"]
+    timeout_seconds: 300
+    expect:
+      exit_code: 0
+      output_contains: ["UNPROTECT: ok", "DONE"]
+  # Expected to be refused, because the key belongs to alice's sign-in. If one of these is allowed, that is the finding.
+  # `admin` is left out on purpose: an admin step goes through Azure's own run-as, which loads no profile (run 8), so
+  # it cannot use DPAPI at all and its refusal would prove nothing. It comes back when admin steps run with a profile.
+  - id: others-read-hers
+    script: 03-read.ps1
+    run_as: ["user:bob", system]
+    timeout_seconds: 300
+    expect:
+      exit_code: 0
+      output_contains: ["OWN DPAPI: ok", "UNPROTECT: DENIED", "DONE"]
+      output_not_contains: ["FAIL"]
+  - id: restart
+    kind: reboot
+    timeout_seconds: 900
+  - id: alice-after-restart
+    script: 03-read.ps1
+    run_as: ["user:alice"]
+    timeout_seconds: 300
+    expect:
+      exit_code: 0
+      output_contains: ["UNPROTECT: ok", "DONE"]

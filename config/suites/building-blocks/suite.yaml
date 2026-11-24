@@ -1,0 +1,46 @@
+# Does each building block work on a real machine? Inputs, a secret that must not leak, whole output past 4 KB,
+# a file in, a file out, a source fetched at one commit, and a restart. (Written; not yet run live.)
+name: building-blocks
+description: Exercises vmlab's own features on one Windows machine, and prints what it saw so the record shows it.
+os: windows
+needs:
+  sources: [example]
+
+inputs:
+  Greeting:
+    description: A plain value, passed by name.
+    default: hello
+  Secret:
+    description: A made-up secret. It must reach the script, and must never appear in the record.
+    secret: true
+
+steps:
+  - id: checks
+    script: 01-checks.ps1
+    run_as: [system]
+    inputs: [Greeting, Secret]
+    timeout_seconds: 600
+    expect:
+      exit_code: 0
+      output_contains: ["DONE"]
+      output_not_contains: ["FAIL"]
+      output_matches:
+        - "GREETING: hello"
+        - "SECRET LENGTH: 21"
+        - "SECRET ECHO: \\[redacted\\]"
+        - "LINE 001 "
+        - "LINE 400 "
+        - "INPUT FILE: hello from the host"
+        - "SOURCE FILES: [1-9]"
+  - id: restart
+    kind: reboot
+    timeout_seconds: 900
+  - id: after-restart
+    script: 02-after-restart.ps1
+    run_as: [system]
+    timeout_seconds: 300
+    expect:
+      exit_code: 0
+      output_contains: ["DONE"]
+      output_matches: ["MARKER AFTER RESTART: yes"]
+      output_not_contains: ["FAIL"]

@@ -1,0 +1,47 @@
+# Does Windows Credential Manager keep a small secret for one user, from a program with no desktop? (Written; not yet run live.)
+# It names no project. The checks are what the documentation leads us to expect; a failing check is a finding.
+name: windows-credential-manager
+description: Saves a made-up secret as one ordinary user with CredWrite, reads it back, tries to read it as others, tries the three persistence kinds and a few sizes, before and after a restart.
+os: windows
+needs:
+  sources: []
+
+steps:
+  - id: setup
+    script: 00-setup.ps1
+    run_as: [system]
+    timeout_seconds: 300
+    expect:
+      exit_code: 0
+      output_contains: ["DONE"]
+      output_not_contains: ["FAIL"]
+  - id: save-as-alice
+    script: 01-save.ps1
+    run_as: ["user:alice"]
+    timeout_seconds: 300
+    expect:
+      exit_code: 0
+      output_contains: ["READ BACK: ok", "DONE"]
+      output_not_contains: ["FAIL"]
+  # Each account has its own credential set, so these are expected to find nothing (error 1168, not found).
+  - id: others-look
+    script: 02-read.ps1
+    # `admin` is left out for now: it goes through Azure's own run-as, which loads no profile (run 8), so "not found"
+    # from it would prove nothing.
+    run_as: ["user:bob", system]
+    timeout_seconds: 300
+    expect:
+      exit_code: 0
+      output_contains: ["READ: not found", "DONE"]
+      output_not_contains: ["FAIL"]
+  - id: restart
+    kind: reboot
+    timeout_seconds: 900
+  - id: alice-after-restart
+    script: 02-read.ps1
+    run_as: ["user:alice"]
+    timeout_seconds: 300
+    expect:
+      exit_code: 0
+      output_contains: ["READ: ok", "DONE"]
+      output_not_contains: ["FAIL"]

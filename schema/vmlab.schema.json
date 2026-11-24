@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "number",
+      "const": 1
+    },
+    "config_dirs": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "provider": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "enum": [
+            "azure",
+            "dry"
+          ]
+        },
+        "azure": {
+          "type": "object",
+          "properties": {
+            "subscription": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "location": {
+              "type": "string",
+              "minLength": 1
+            },
+            "resource_group_prefix": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{0,30}$"
+            }
+          },
+          "required": [
+            "subscription",
+            "location",
+            "resource_group_prefix"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "name",
+        "azure"
+      ],
+      "additionalProperties": false
+    },
+    "default_profile": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "lifetime": {
+      "type": "object",
+      "properties": {
+        "ttl_minutes": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "delete": {
+          "type": "string",
+          "enum": [
+            "always",
+            "on_success",
+            "never"
+          ]
+        }
+      },
+      "required": [
+        "ttl_minutes",
+        "delete"
+      ],
+      "additionalProperties": false
+    },
+    "budget": {
+      "type": "object",
+      "properties": {
+        "max_estimated_usd": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "max_estimated_usd"
+      ],
+      "additionalProperties": false
+    },
+    "attestations": {
+      "type": "object",
+      "properties": {
+        "windows_client_licence": {
+          "type": "object",
+          "properties": {
+            "holds_eligible_licence": {
+              "type": "boolean"
+            },
+            "reference": {
+              "type": "string"
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "holds_eligible_licence",
+            "reference",
+            "note"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "windows_client_licence"
+      ],
+      "additionalProperties": false
+    },
+    "policy": {
+      "type": "object",
+      "properties": {
+        "sources": {
+          "type": "object",
+          "properties": {
+            "allow": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "refs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "allow",
+            "refs"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "sources"
+      ],
+      "additionalProperties": false
+    },
+    "tags": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "version",
+    "config_dirs",
+    "provider",
+    "default_profile",
+    "lifetime",
+    "budget",
+    "attestations",
+    "policy",
+    "tags"
+  ],
+  "additionalProperties": false
+}

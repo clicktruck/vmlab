@@ -1,0 +1,10 @@
+# Host tools for vmlab, pinned with mise (https://mise.jdx.dev).
+#
+#   mise install      installs what is listed here
+#
+# Only what the host itself needs goes in this file. Node, the Azure CLI and every library
+# live inside the Docker images, not on your machine. Docker itself is an app, not a mise tool.
+# This file never changes the global toolchain: no `mise use -g`.
+
+[tools]
+just = "1.59"

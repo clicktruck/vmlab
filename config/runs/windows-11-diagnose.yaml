@@ -1,0 +1,15 @@
+# One Windows 11 machine, three suites in order, to end the guessing after runs 8 to 10:
+#   1. network-probe       can the machine reach the internet at all? (never yet checked)
+#   2. windows-task-probe  ten ways of starting a program as an ordinary account, read from the scheduler's own log;
+#                          then it signs a second account in at the screen (a restart) and asks again
+#   3. windows-dpapi       the real suite, now with an account signed in at the screen
+# The research (docs/research/03) says client Windows may hold a stored-password task until someone has signed in.
+# This run tests that, and tries the direct launch that would replace the task. About 35 minutes on one machine.
+name: windows-11-diagnose
+description: Network reach, ways to run as an ordinary account, and DPAPI, on one Windows 11 machine.
+profiles: [windows-11]
+sources: []
+suites:
+  - name: network-probe
+  - name: windows-task-probe
+  - name: windows-dpapi

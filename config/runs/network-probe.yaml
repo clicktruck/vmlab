@@ -1,0 +1,7 @@
+# Is the internet reachable from the machines vmlab makes? Cheap: one small machine, a minute or two.
+name: network-probe
+description: Tries a handful of addresses from a Windows 11 machine and from Windows Server 2025.
+profiles: [windows-11, windows-server-2025]
+sources: []
+suites:
+  - name: network-probe

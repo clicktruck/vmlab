@@ -1,0 +1,17 @@
+# A small live check of vmlab's own building blocks, on one Windows Server 2025 machine (no Windows 11 licence needed).
+# Needs: policy.sources.allow to include github.com/octocat/* in vmlab.local.yaml, and VMLAB_CHECK_SECRET set to any
+# made-up 21-character value (the suite checks its length). Run `network-probe` first: this run downloads from GitHub.
+name: building-blocks
+description: Inputs, secrets, whole output, file in, file out, source fetch and a restart, on one machine.
+files:
+  in:
+    - { from: config/suites/building-blocks/sample-input.txt, to: 'C:\vmlab\in\sample.txt' }
+  out:
+    - { from: 'C:\vmlab\out', to: blocks-out }
+profiles: [windows-server-2025]
+sources:
+  - name: example
+suites:
+  - name: building-blocks
+    inputs:
+      Secret: env:VMLAB_CHECK_SECRET

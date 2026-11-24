@@ -1,0 +1,46 @@
+# Can Docker Desktop be installed on this Windows machine and run a Linux container? (Built; not yet run live.)
+# It names no project. A project's own suite can build on the result.
+name: windows-docker-desktop
+description: Turns on the Windows features Docker Desktop needs, restarts, installs a pinned Docker Desktop installer, starts it, and runs a tiny Linux container.
+os: windows
+needs:
+  sources: []
+
+inputs:
+  InstallerUrl:
+    description: Where to download the Docker Desktop installer.
+    default: "https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe"
+  InstallerSha256:
+    description: The SHA-256 of the installer you have checked. Empty means "not pinned", which fails the step on purpose, after printing the hash it saw.
+
+steps:
+  - id: features
+    script: 01-features.ps1
+    run_as: [system]
+    timeout_seconds: 900
+    expect:
+      exit_code: 0
+      output_contains: ["DONE"]
+      output_not_contains: ["FAIL"]
+  - id: restart
+    kind: reboot
+    timeout_seconds: 900
+  - id: install
+    script: 02-install.ps1
+    run_as: [system]
+    inputs: [InstallerUrl, InstallerSha256]
+    timeout_seconds: 1800
+    expect:
+      exit_code: 0
+      output_contains: ["DONE", "PINNED"]
+      output_not_contains: ["FAIL", "UNPINNED"]
+  - id: run-container
+    script: 03-run.ps1
+    run_as: [system]
+    timeout_seconds: 1200
+    expect:
+      exit_code: 0
+      output_contains: ["DONE"]
+      # The container's own words, not ours: the check the script cannot fake by printing them itself.
+      output_matches: ["Hello from Docker!"]
+      output_not_contains: ["FAIL"]

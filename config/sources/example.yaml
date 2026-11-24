@@ -1,0 +1,9 @@
+# A source is code vmlab may fetch onto the machine and test. This one is an example only:
+# a public repo, so it needs no token. Copy it to your own config directory, change it, and allow it in
+# policy.sources.allow in vmlab.local.yaml. Nothing is fetched unless a policy rule allows it.
+name: example
+type: git-github
+repo: octocat/Hello-World   # owner/name on github.com
+default_ref: master
+auth: null                  # null: public. For a private repo, name an environment variable on YOUR computer:
+                            #   auth: { token_env: VMLAB_GITHUB_TOKEN }   (a read-only token; docs/03)

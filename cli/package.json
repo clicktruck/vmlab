@@ -1,0 +1,30 @@
+{
+  "name": "vmlab-cli",
+  "version": "0.0.0",
+  "private": true,
+  "description": "vmlab command line: makes a throwaway machine, runs declared tests on it, and deletes it",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=26"
+  },
+  "packageManager": "pnpm@12.23.0",
+  "scripts": {
+    "start": "node src/main.ts",
+    "test": "node --test",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "fmt": "biome check --write .",
+    "schema": "node src/schema-write.ts"
+  },
+  "dependencies": {
+    "commander": "^15.1.0",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.8",
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  }
+}

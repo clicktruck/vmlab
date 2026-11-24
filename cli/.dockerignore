@@ -1,0 +1,17 @@
+# What is left out of the Node image's build context (compose.yaml: build: ./cli).
+# Docker reads "#" as a comment only at the start of a line.
+node_modules
+.pnpm-store
+*.tsbuildinfo
+coverage
+dist
+build
+# Secrets: never bake a key into an image layer
+.env
+.env.*
+*.pem
+*.key
+*.pfx
+secrets
+*.log
+.DS_Store

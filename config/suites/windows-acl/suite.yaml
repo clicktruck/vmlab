@@ -1,0 +1,22 @@
+# A suite is a folder: this file plus the scripts it runs. It names no project.
+name: windows-acl
+description: Makes new files in two kinds of folder, locks each one several ways with icacls and PowerShell, and prints who can open each, one line per file. Shows what Windows does with a file's access list.
+os: windows
+needs:
+  sources: []              # none: the scripts are self-contained
+
+steps:
+  - id: experiments
+    script: 01-experiments.ps1
+    run_as: [admin, system]   # the step runs once as each
+    timeout_seconds: 300
+    expect:
+      exit_code: 0
+      output_contains: ["DONE", "RUNNING AS:"]
+      output_not_contains: ["Exception"]
+      # The two candidate fixes (H, I) must each leave exactly one entry, in both kinds of folder, for both kinds of user.
+      output_matches:
+        - "SCENARIO 1[\\s\\S]*H A,then remove others \\(logon SID\\)\\s+protected=True entries=1 \\["
+        - "SCENARIO 2[\\s\\S]*H A,then remove others \\(logon SID\\)\\s+protected=True entries=1 \\["
+        - "SCENARIO 1[\\s\\S]*I replace whole list \\(restore\\)\\s+protected=True entries=1 \\["
+        - "SCENARIO 2[\\s\\S]*I replace whole list \\(restore\\)\\s+protected=True entries=1 \\["

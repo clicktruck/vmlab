@@ -1,0 +1,16 @@
+# Can the machine reach the places a run usually downloads from? It fails, with the output kept, if any is blocked.
+name: network-probe
+description: Tries a few well-known addresses from the machine and prints one line each. Run it before a run that downloads anything.
+os: windows
+needs:
+  sources: []
+
+steps:
+  - id: reach
+    script: 01-reach.ps1
+    run_as: [system]
+    timeout_seconds: 300
+    expect:
+      exit_code: 0
+      output_contains: ["DONE"]
+      output_not_contains: ["FAIL"]

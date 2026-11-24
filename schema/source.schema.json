@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "type": {
+      "type": "string",
+      "const": "git-github"
+    },
+    "repo": {
+      "type": "string",
+      "pattern": "^[\\w.-]+\\/[\\w.-]+$"
+    },
+    "default_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "auth": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "token_env": {
+              "type": "string",
+              "pattern": "^[A-Z_][A-Z0-9_]*$"
+            }
+          },
+          "required": [
+            "token_env"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "name",
+    "type",
+    "repo",
+    "default_ref",
+    "auth"
+  ],
+  "additionalProperties": false
+}

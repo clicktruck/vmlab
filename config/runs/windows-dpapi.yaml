@@ -1,0 +1,7 @@
+# DPAPI on a rented Windows 11 machine and a Windows Server 2025 machine. Needs run_as user:NAME (two small accounts).
+name: windows-dpapi
+description: Protect a made-up secret with DPAPI as one user and try to open it as others, before and after a restart.
+profiles: [windows-11, windows-server-2025]
+sources: []
+suites:
+  - name: windows-dpapi

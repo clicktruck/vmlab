@@ -1,0 +1,14 @@
+# Windows Server 2025. The licence is part of the hourly price, so no licence check applies.
+name: windows-server-2025
+description: Windows Server 2025 Datacenter, Azure Edition, small disk. The cheapest way to get a real Windows with no licence question.
+os: windows
+image: MicrosoftWindowsServer:WindowsServer:2025-datacenter-azure-edition-smalldisk:latest   # available on 2026-11-23
+size: Standard_D2s_v6      # 2 CPUs, 8 GB. In eastus on 2026-11-23: $0.193 an hour at the Windows rate, $0.101 without (Azure's price list).
+                           # A new subscription had a vCPU quota of 10 for this family, and 0 for Standard_B2s_v2 (cheaper, $0.0924) until quota is requested (docs/06)
+disk: StandardSSD_LRS
+network:
+  public_ip: false
+  inbound: []
+
+licence:
+  type: included           # the hourly price covers Windows

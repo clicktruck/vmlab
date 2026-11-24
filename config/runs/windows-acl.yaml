@@ -1,0 +1,9 @@
+# A run is one declarative test: which machine, which sources, which suites.
+# `vmlab test windows-acl` plans it, asks yes, makes the machine, runs the suites, deletes the machine and reports.
+name: windows-acl
+description: What Windows does with a file's access list, on Windows 11 and Windows Server 2025.
+# Both are required targets (D9). Windows 11 is a gap, not a pass, until its licence setting is true (docs/03).
+profiles: [windows-11, windows-server-2025]
+sources: []
+suites:
+  - name: windows-acl

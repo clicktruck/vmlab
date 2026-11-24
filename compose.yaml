@@ -1,0 +1,26 @@
+# vmlab, run locally. Nothing is installed on the host: the command lives in its own image.
+# Use the Justfile (just --list) instead of calling docker compose by hand.
+name: vmlab
+
+services:
+  # TypeScript: the vmlab command. Started per command with `docker compose run`, never left running.
+  cli:
+    build: ./cli
+    environment:
+      # Where the repo is inside the container: config, schema, docs and run records are found from here.
+      VMLAB_ROOT: /project
+      # A read-only token for a private source, if a source file names one with token_env. Passed through from
+      # your shell when set; never printed or written to a file.
+      VMLAB_GITHUB_TOKEN: ${VMLAB_GITHUB_TOKEN:-}
+      # A made-up value for the building-blocks check run (config/runs/building-blocks.yaml). Not a real secret.
+      VMLAB_CHECK_SECRET: ${VMLAB_CHECK_SECRET:-}
+    working_dir: /project
+    volumes:
+      - ./cli:/workspace/cli # source, so edits apply without a rebuild
+      - .:/project # config, schema, docs, and runs/ for run records
+      # Azure sign-in tokens. A Docker volume, so they are never in the repo, the image or a run record.
+      # Made by `just login`; removed by `just logout`.
+      - azure-token:/root/.azure
+
+volumes:
+  azure-token:

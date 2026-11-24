@@ -1,0 +1,19 @@
+# A profile describes one kind of machine. This one is Windows 11.
+name: windows-11
+description: Windows 11 Enterprise, 25H2. Needs an eligible Microsoft licence (see licence below).
+os: windows
+image: MicrosoftWindowsDesktop:windows-11:win11-25h2-ent:latest   # the 24h2, 25h2 and 26h2 SKUs were listed in eastus2 on 2026-11-23
+size: Standard_D2s_v6      # 2 CPUs, 8 GB. In eastus on 2026-11-23: $0.193 an hour at the Windows rate, $0.101 without (Azure's price list).
+                           # A new subscription had a vCPU quota of 10 for this family, and 0 for Standard_B2s_v2 (cheaper, $0.0924) until quota is requested (docs/06)
+disk: StandardSSD_LRS
+network:
+  public_ip: false         # commands reach the machine through the cloud's own channel
+  inbound: []              # no open ports
+
+# Windows 11 on Azure is not licensed in the hourly price the way Windows Server is: the person using the machine
+# must hold an eligible Microsoft licence (docs/04). vmlab cannot check your licence. It refuses to make this machine
+# until YOU set attestations.windows_client_licence.holds_eligible_licence to true (once, in vmlab.local.yaml), and it
+# records that in the run record. When it is true, vmlab sets the Windows_Client licence type on the machine.
+licence:
+  type: Windows_Client     # passed to `az vm create --license-type`
+  requires_attestation: windows_client_licence
