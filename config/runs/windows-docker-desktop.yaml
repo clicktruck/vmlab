@@ -1,11 +1,10 @@
-# Can Docker Desktop run a Linux container on a rented Windows 11 machine? One machine, a few steps, about half an hour.
-# The installer's hash is not pinned here on purpose: the first run prints the hash it saw and installs nothing.
-# Check that hash against Docker's published value, then put it in InstallerSha256 below.
+# Can Docker Desktop run a Linux container on a rented Windows 11 machine? One machine, about 30 to 40 minutes.
+# The suite pins the installer by build number and hash, and ACCEPTS Docker's Subscription Service Agreement
+# (see the suite file). `exchange` brings each step's whole output back, which a first try needs.
 name: windows-docker-desktop
 description: Install Docker Desktop on Windows 11 and run hello-world.
+exchange: true
 profiles: [windows-11]
 sources: []
 suites:
   - name: windows-docker-desktop
-    inputs:
-      InstallerSha256: ""

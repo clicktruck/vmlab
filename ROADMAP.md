@@ -34,11 +34,12 @@ This is the one place that says what is finished, what is half-finished, and wha
 | Run record (`runs/<id>/run.json`) with the exact values used, every step, its output, its time and every gap | **Completed** | Read back from live runs |
 | Pass, fail and **gap** reporting; a gap is never a pass; exit codes `0`, `1`, `2`, `3`, `4` | **Completed** | Tested; gap seen live for a Windows 11 profile before its licence was attested |
 | Windows 11 licence attestation, with a place for a support case number | **Completed** | Used live. The case number field is only recorded, never checked |
-| Deny-by-default source policy | **Partial** | Tested. No live run has fetched a source yet |
+| Deny-by-default source policy | **Completed** | Run 15: the plan refused the run until one repo was allowed, then that repo was fetched |
 | Restart steps (`kind: reboot`) | **Completed** | Run 8: both machines restarted in about 73 seconds and the next step ran |
-| Named inputs, with secrets read only from the environment and sent as protected parameters | **Partial** | Tested, including that a secret never reaches the record. First live use is the `building-blocks` suite |
-| Private storage for files in and out, and for a script's whole output (Run Command alone keeps about 4 KB) | **Partial** | Tested with a fake. Not yet run live |
-| Fetching a source at one exact commit (the ref is turned into a commit id on your computer; the machine downloads that commit) | **Partial** | Tested with a fake GitHub. It also needs the machine to reach the internet, which is not yet known (below) |
+| Named inputs, with secrets read only from the environment and sent as protected parameters | **Completed** | Run 15: a value and a secret arrived, and the secret is blanked in the record |
+| Private storage for files in and out, and for a script's whole output (Run Command alone keeps about 4 KB) | **Completed** | Runs 14 and 15, on Windows Server 2025: 23,310 characters of output, one file in, one folder out. Not yet on Windows 11 |
+| Fetching a source at one exact commit (the ref is turned into a commit id on your computer; the machine downloads that commit) | **Partial** | Runs 14 and 15: a public repo, on Windows Server 2025. A private repo with a token has not been tried |
+| Steps that run inside the desktop session of an ordinary account signed in at the screen (`run_as: session:NAME`), for desktop programs | **Completed** on Windows 11 | Runs 17 and 18: the account was signed in at the screen by itself, and Docker Desktop was installed and started in its session. Not tried on Windows Server 2025 |
 | Steps that run as an ordinary account (`run_as: user:NAME`), with the account's profile loaded | **Completed** | Run 12, on Windows 11 and Windows Server 2025, with nobody signed in. Client Windows holds a stored-password task until someone signs in, so vmlab starts the task with its conditions ignored ([research/03](docs/research/03-running-as-another-windows-user.md)). `admin` steps do not have a profile yet (below) |
 | `vmlab sweep`: delete anything vmlab made that is past its expiry | **Partial** | Tested with a fake. Not yet run against real leftovers |
 | Sign in with a device code (`just login`) | **Partial** | Works where the organisation allows it. At least one organisation's policy blocks it, so two other routes exist |
@@ -51,11 +52,11 @@ This is the one place that says what is finished, what is half-finished, and wha
 | --- | --- | --- |
 | [windows-acl](config/suites/windows-acl/suite.yaml) | What does Windows do with a file's access list, and which fix leaves exactly one entry? | **Completed**. Four runs; results in [research/02](docs/research/02-windows-file-access-lists.md) |
 | [network-probe](config/suites/network-probe/suite.yaml) | Can a machine reach GitHub, Docker, Microsoft and PyPI? | **Partial**: yes on Windows 11 (run 11). Not yet run on Windows Server 2025 |
-| [building-blocks](config/suites/building-blocks/suite.yaml) | Do inputs, secrets, whole output, files in and out, a source fetch and a restart all work? | **Planned to run**: written, not yet run |
+| [building-blocks](config/suites/building-blocks/suite.yaml) | Do inputs, secrets, whole output, files in and out, a source fetch and a restart all work? | **Completed** on Windows Server 2025 (run 15). Not yet on Windows 11 |
 | [windows-dpapi](config/suites/windows-dpapi/suite.yaml) | Does DPAPI protect a small secret for one user, and who else can open it? | **Completed** on both systems (run 12): only the user can open it, before and after a restart. The administrator is not yet in the test |
 | [windows-task-probe](config/suites/windows-task-probe/suite.yaml) | Which way of starting a program as an ordinary Windows account gives it a loaded profile and working DPAPI? Ten ways, four without Task Scheduler, before and after an account is signed in at the screen | **Completed** on Windows 11 (run 11); results in [research/03](docs/research/03-running-as-another-windows-user.md) |
 | [windows-credential-manager](config/suites/windows-credential-manager/suite.yaml) | Does Credential Manager keep a small secret for one user, and who else can read it? | **Completed** on both systems (run 13): the user reads it back, before and after a restart; another user and the system account find nothing; 2,560 bytes is the most it takes. The administrator is not yet in the test |
-| [windows-docker-desktop](config/suites/windows-docker-desktop/suite.yaml) | Can Docker Desktop be installed on Windows 11 and run a Linux container? Needs nested virtualization, which is not yet known to be available | **Planned to run**: written, not yet run. The installer's hash is empty on purpose, so the first run installs nothing and prints the hash it saw |
+| [windows-docker-desktop](config/suites/windows-docker-desktop/suite.yaml) | Can Docker Desktop be installed on Windows 11 and run a Linux container? | **Completed** on Windows 11 (run 18): installed for one ordinary account, started in its desktop session, `hello-world` ran. Docker Compose and real projects are not yet covered |
 
 ## Commands
 
@@ -79,8 +80,8 @@ These are not features; they are facts about Azure and Windows that decide what 
 | Can Run Command start a script as an ordinary account with no desktop sign-in? | **Answered, with a catch** | Run 8: yes, it runs as the account, but with no profile loaded |
 | Does a scheduled task (the account logged on as a batch job) give a step a loaded profile? | **Answered: yes on both systems.** On Windows 11 the task is held until someone signs in at the screen, unless it is started with its conditions ignored | Runs 9 and 11 |
 | Does vmlab's own wrapper, which starts the task with its conditions ignored, work on Windows 11 with nobody signed in, and still on Windows Server 2025? | **Answered: yes** | Run 12 |
-| Does Run Command's whole-output storage link work from a machine in a private subnet? Microsoft says same-region storage stays reachable | **Open** | `building-blocks` |
-| Can Docker Desktop run on a rented Windows 11 machine at all? | **Open** | `windows-docker-desktop` |
+| Does Run Command's whole-output storage link work from the machines vmlab makes? | **Answered: yes**, once the link allows read as well as write | Runs 14 and 15 |
+| Can Docker Desktop run on a rented Windows 11 machine at all? | **Answered: yes** | Run 18, on `Standard_D2s_v6`. Docker's page says running it in an Azure VM is supported for Docker Business customers |
 
 ## What comes next
 
@@ -91,6 +92,7 @@ These are not features; they are facts about Azure and Windows that decide what 
 | Other clouds (AWS, Google Cloud, Oracle) | **Open** | Not planned yet |
 | A local virtual machine provider (VirtualBox, UTM, VMware Fusion) | **Not wanted** | Decided against: D7 |
 | More kinds of check on a step (beyond exit code and output text) | **Open** | |
+| A Podman Desktop suite, as a second way to run Linux containers on Windows 11 | **Open** | Free under Apache-2.0, installs with nobody at the keyboard, runs `docker compose` ([research/04](docs/research/04-containers-on-windows.md)). OrbStack cannot be tested: it is macOS only |
 | Run the machines of one run side by side instead of one after another | **Open** | Slower but simpler today |
 | Stop waiting in 30-second jumps: start a step without waiting and check its state every few seconds | **Planned** | Measured: every send step takes a multiple of about 31 seconds, so each wastes up to 30 ([research/03](docs/research/03-running-as-another-windows-user.md)). To be tried by itself on `building-blocks`, never during a diagnosis |
 | Replace the scheduled task with a direct launch for `user:NAME` steps | **Not needed now** | The task works on both systems (run 12). The probe showed a direct launch also works on Windows 11 (run 11); it stays the fallback |

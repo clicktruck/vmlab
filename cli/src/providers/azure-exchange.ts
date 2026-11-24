@@ -95,8 +95,12 @@ export class AzureExchange {
     return `${new Date(Date.now() + HOURS * 3600_000).toISOString().slice(0, 16)}Z`;
   }
 
-  /** A link to one blob that allows only what `permissions` says (r to read; acw to create and write). */
-  async link(blob: string, permissions: 'r' | 'acw'): Promise<string> {
+  /**
+   * A link to one blob that allows only what `permissions` says: r to read; acw to create and write; racw for a
+   * script's output, because Azure's Run Command asks for read as well when it appends to the blob (run 14 got
+   * nothing back with acw).
+   */
+  async link(blob: string, permissions: 'r' | 'acw' | 'racw'): Promise<string> {
     await this.ensure();
     const out = await this.run([
       'storage',

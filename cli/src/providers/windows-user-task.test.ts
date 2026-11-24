@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildRunAsUserScript, CREATE_USER_SCRIPT, inputsJson, safeName } from './windows-user-task.ts';
+import {
+  buildRunAsUserScript,
+  CREATE_USER_SCRIPT,
+  inputsJson,
+  SIGN_IN_SCRIPT,
+  safeName,
+} from './windows-user-task.ts';
 
 test('the step script travels inside the wrapper as base64, so no quote in it can break the wrapper', () => {
   const nasty = `Write-Output 'it''s "quoted" $x \`n @' ; "@`;
@@ -18,11 +24,9 @@ test('the wrapper registers a task for the account with its password, so the pro
   assert.match(w, /exit \$code/);
   // The step runs in a fresh PowerShell, so its exit code is what a plain step gives.
   assert.match(w, /& powershell\.exe -NoProfile -ExecutionPolicy Bypass -File/);
-  // The password and the inputs are parameters, never text in the script.
-  assert.match(
-    w,
-    /param\(\[Parameter\(Mandatory\)\]\[string\]\$Name, \[Parameter\(Mandatory\)\]\[string\]\$Pw/,
-  );
+  // The password and the inputs are parameters, never text in the script. The password is optional only because a
+  // session step needs none.
+  assert.match(w, /param\(\[Parameter\(Mandatory\)\]\[string\]\$Name, \[string\]\$Pw = ''/);
 });
 
 test('the account is a member of Users only and may log on as a batch job', () => {
@@ -66,4 +70,31 @@ test('no task setting is left to a default that can hold a task back, and a task
   assert.match(w, /GetFolder\('\\'\)\.GetTask\(\$task\)\.RunEx\(\$null, 2, 0, \$null\)/);
   assert.equal(w.includes('Start-ScheduledTask'), false);
   assert.match(w, /Microsoft-Windows-TaskScheduler\/Operational/);
+});
+
+test('in a session the task runs inside the signed-in account, with no stored password, after waiting for its desktop', () => {
+  const w = buildRunAsUserScript('a.ps1', 'x', 'session');
+  assert.match(w, /New-ScheduledTaskPrincipal -UserId \$account -LogonType Interactive -RunLevel Limited/);
+  assert.match(w, /Register-ScheduledTask .*-Principal \$principal/);
+  assert.equal(/-Password \$Pw/.test(w), false);
+  assert.match(w, /Get-Process explorer -IncludeUserName/);
+  assert.match(w, /is not signed in at the screen after 300 seconds/);
+  // The background kind is unchanged.
+  const b = buildRunAsUserScript('a.ps1', 'x');
+  assert.match(b, /-User \$account -Password \$Pw -RunLevel Limited/);
+  assert.equal(
+    b.includes(
+      'Get-Process explorer -IncludeUserName -ErrorAction SilentlyContinue | Where-Object { $_.UserName -eq $account }',
+    ),
+    false,
+  );
+});
+
+test('the sign-in script sets Windows to sign the account in by itself, and takes the password as a parameter', () => {
+  assert.match(SIGN_IN_SCRIPT, /AutoAdminLogon/);
+  assert.match(
+    SIGN_IN_SCRIPT,
+    /param\(\[Parameter\(Mandatory\)\]\[string\]\$Name, \[Parameter\(Mandatory\)\]\[string\]\$Pw\)/,
+  );
+  assert.ok(SIGN_IN_SCRIPT.includes(String.raw`HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon`));
 });

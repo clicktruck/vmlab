@@ -1,17 +1,30 @@
-# Can Docker Desktop be installed on this Windows machine and run a Linux container? (Built; not yet run live.)
+# Can Docker Desktop be installed on this Windows machine and run a Linux container?
 # It names no project. A project's own suite can build on the result.
+#
+# This suite ACCEPTS Docker's Subscription Service Agreement for whoever runs it (the installer's --accept-license).
+# Run it only if you may: https://docs.docker.com/subscription/desktop-license/
 name: windows-docker-desktop
-description: Turns on the Windows features Docker Desktop needs, restarts, installs a pinned Docker Desktop installer, starts it, and runs a tiny Linux container.
+description: Turns on the Windows features Docker Desktop needs, restarts, installs a pinned WSL, signs an ordinary account in at the screen, installs a pinned Docker Desktop for that account, starts it, and runs a tiny Linux container.
 os: windows
 needs:
   sources: []
 
 inputs:
+  # Pinned: Docker Desktop 4.100.1, build 247138, released 2026-11-23. The hash is the one Docker publishes at
+  # https://desktop.docker.com/win/main/amd64/247138/checksums.txt (read 2026-11-24), and it matched a download.
   InstallerUrl:
-    description: Where to download the Docker Desktop installer.
-    default: "https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe"
+    description: Where to download the Docker Desktop installer. A build-numbered address, so it cannot change under the hash.
+    default: "https://desktop.docker.com/win/main/amd64/247138/Docker%20Desktop%20Installer.exe"
+  # Pinned: WSL 3.0.5, released 2026-11-03. The hash is the one GitHub shows for the release asset (read 2026-11-24).
+  WslMsiUrl:
+    description: Microsoft's WSL package, from its GitHub release.
+    default: "https://github.com/microsoft/WSL/releases/download/3.0.5/wsl.3.0.5.0.x64.msi"
+  WslMsiSha256:
+    description: The SHA-256 of that package.
+    default: "2313efc5873e3f8552f42e77f950fabd913c0289078fa89d2100f3421a525eaa"
   InstallerSha256:
-    description: The SHA-256 of the installer you have checked. Empty means "not pinned", which fails the step on purpose, after printing the hash it saw.
+    description: 'The SHA-256 of the installer. Empty means "not pinned": the step then prints the hash it saw, installs nothing and fails.'
+    default: "98b24fd6f56313899953ca4d2ed05645d69963b598143b75c6585fa4f7f639b2"
 
 steps:
   - id: features
@@ -25,19 +38,30 @@ steps:
   - id: restart
     kind: reboot
     timeout_seconds: 900
-  - id: install
-    script: 02-install.ps1
+  - id: wsl
+    script: 02-wsl.ps1
     run_as: [system]
+    inputs: [WslMsiUrl, WslMsiSha256]
+    timeout_seconds: 900
+    expect:
+      exit_code: 0
+      output_contains: ["DONE"]
+      output_not_contains: ["FAIL"]
+  # Docker Desktop is a desktop program. `session:tester` makes an ordinary account, signs it in at the screen by
+  # itself (one more restart), and runs the step inside that desktop session.
+  - id: install
+    script: 03-install.ps1
+    run_as: ["session:tester"]
     inputs: [InstallerUrl, InstallerSha256]
     timeout_seconds: 1800
     expect:
       exit_code: 0
-      output_contains: ["DONE", "PINNED"]
+      output_contains: ["PINNED", "DONE"]
       output_not_contains: ["FAIL", "UNPINNED"]
   - id: run-container
-    script: 03-run.ps1
-    run_as: [system]
-    timeout_seconds: 1200
+    script: 04-run.ps1
+    run_as: ["session:tester"]
+    timeout_seconds: 1500
     expect:
       exit_code: 0
       output_contains: ["DONE"]

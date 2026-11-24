@@ -13,6 +13,7 @@ One topic per file, in reading order. What is finished, half-finished, planned a
 | [07-what-has-been-proven.md](07-what-has-been-proven.md) | The evidence: what has been seen on real Azure machines, what a run costs and how long it takes, every live run, and what has not been shown yet |
 | [decisions.md](decisions.md) | Every decision, with the date and who made it, and what is still Open |
 | [research/03-running-as-another-windows-user.md](research/03-running-as-another-windows-user.md) | How to start a program as an ordinary Windows account with its profile loaded: what Azure, Packer, Vagrant and Ansible do, the stall on client Windows, and why steps wait in 30-second jumps |
+| [research/04-containers-on-windows.md](research/04-containers-on-windows.md) | Ways to run Linux containers on a Windows 11 PC (Docker Desktop, Podman Desktop, Rancher Desktop, Docker Engine in WSL, OrbStack): licence, `docker compose`, silent install |
 | [research/01-windows-vm-options.md](research/01-windows-vm-options.md) | What was found about running Windows for tests, with sources and the date checked |
 
 Docs still to write are listed in [../ROADMAP.md](../ROADMAP.md#what-comes-next).

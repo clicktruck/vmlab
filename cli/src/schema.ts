@@ -83,7 +83,9 @@ const expect = z
   .strict();
 export type Expect = z.infer<typeof expect>;
 
-const runAs = z.string().regex(/^(admin|system|user:[A-Za-z0-9_.-]+)$/, 'admin, system or user:NAME');
+const runAs = z
+  .string()
+  .regex(/^(admin|system|(user|session):[A-Za-z0-9_.-]+)$/, 'admin, system, user:NAME or session:NAME');
 
 const ScriptStep = z
   .object({

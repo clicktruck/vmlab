@@ -41,13 +41,19 @@ export function resolveInputs(
       );
       continue;
     }
-    const value = fromEnv ? env[fromEnv[1] as string] : wanted;
-    if (value === undefined || value === '') {
-      out.problems.push(
-        `input "${name}" of suite ${suite.name}: the environment variable ${fromEnv?.[1]} is not set`,
-      );
-      continue;
+    if (fromEnv) {
+      const fromEnvValue = env[fromEnv[1] as string];
+      if (fromEnvValue === undefined || fromEnvValue === '') {
+        out.problems.push(
+          `input "${name}" of suite ${suite.name}: the environment variable ${fromEnv[1]} is not set`,
+        );
+        continue;
+      }
     }
+    const value = fromEnv ? (env[fromEnv[1] as string] as string) : wanted;
+    // An input written as an empty string is a choice ("nothing for this one"), not a mistake. It is not sent, so the
+    // script's own default applies. (An empty parameter cannot be told from a missing one on the way to the machine.)
+    if (value === '') continue;
     (spec.secret ? out.protectedParameters : out.parameters)[name] = value;
   }
   return out;

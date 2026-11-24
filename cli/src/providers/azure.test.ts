@@ -289,7 +289,7 @@ test('admin steps run as the admin user and system steps without a user', async 
   await p.exec(m, script, 'system', 60);
   const systemCreate = calls.filter((c) => c[0] === 'vm' && c[1] === 'run-command' && c[2] === 'create')[1];
   assert.equal(systemCreate?.includes('--run-as-user'), false);
-  await assert.rejects(p.exec(m, script, 'root', 60), /not one of admin, system or user:NAME/);
+  await assert.rejects(p.exec(m, script, 'root', 60), /not one of admin, system, user:NAME or session:NAME/);
 });
 
 test('a user:NAME step makes the account once, then runs the step through a task as that account, so its profile is loaded', async () => {
@@ -613,4 +613,100 @@ test('once the exchange holds a key, every az call after it is told to scrub tha
   await p.putFile(m, '/p/x.pdf', 'C:\\x.pdf');
   const last = optionsSeen.at(-1);
   assert.ok(last?.secrets?.includes('THE-ACCOUNT-KEY-123'), 'the key is on the scrub list');
+});
+
+test('a link for script output allows read as well as write, because Run Command asks for it (run 14 got nothing back without)', async () => {
+  const { az, calls } = exchangeAz();
+  const p = new AzureProvider(az, settings, undefined, () => PASSWORD);
+  const m = await p.up(profile, ctx());
+  await p.prepareExchange(m);
+  await p.exec(m, { name: 'a.ps1', content: 'x' }, 'system', 60);
+  const sas = calls.filter((c) => c[1] === 'blob' && c[2] === 'generate-sas');
+  const forOutput = sas.filter((c) => /-(out|err)\.txt$/.test(after(c, '-n') ?? ''));
+  assert.equal(forOutput.length, 2);
+  for (const c of forOutput) assert.equal(after(c, '--permissions'), 'racw');
+});
+
+test('when storage cannot be read, what Run Command kept is used and the record says so', async () => {
+  const base = exchangeAz((a) =>
+    a[1] === 'run-command' && a[2] === 'show'
+      ? JSON.stringify({ executionState: 'Succeeded', exitCode: 0, output: 'the last 4 KB', error: '' })
+      : undefined,
+  );
+  const az: Az = async (args, opts) => {
+    if (args[0] === 'storage' && args[1] === 'blob' && args[2] === 'download')
+      throw new Error('BlobNotFound');
+    return base.az(args, opts);
+  };
+  const p = new AzureProvider(az, settings, undefined, () => PASSWORD);
+  const m = await p.up(profile, ctx());
+  await p.prepareExchange(m);
+  const res = await p.exec(m, { name: 'a.ps1', content: 'x' }, 'system', 60);
+  assert.match(res.output, /the last 4 KB/);
+  assert.match(res.output, /\[vmlab\] could not read vmlab-step-\d+-out\.txt from storage: BlobNotFound/);
+});
+
+test('a step that returns nothing at all says so, and never looks like a quiet success', async () => {
+  const { az } = exchangeAz(
+    (a) =>
+      a[1] === 'run-command' && a[2] === 'show'
+        ? JSON.stringify({ executionState: 'Succeeded', exitCode: 0, output: '', error: '' })
+        : undefined,
+    { 'out.txt': '', 'err.txt': '' },
+  );
+  const p = new AzureProvider(az, settings, undefined, () => PASSWORD);
+  const m = await p.up(profile, ctx());
+  await p.prepareExchange(m);
+  const res = await p.exec(m, { name: 'a.ps1', content: 'x' }, 'system', 60);
+  assert.match(res.output, /\[vmlab\] this step returned no output at all/);
+});
+
+test('a session:NAME step makes the account, signs it in at the screen with one restart, then runs inside its session', async () => {
+  const base = fakeAz();
+  const calls = base.calls;
+  // The restart waits until Azure reports the machine running with its agent ready: answer that at once.
+  const az: Az = async (args, opts) => {
+    if (args[0] === 'vm' && args[1] === 'get-instance-view') {
+      calls.push(args);
+      return {
+        stdout: JSON.stringify({
+          statuses: [{ code: 'PowerState/running' }],
+          vmAgent: { statuses: [{ displayStatus: 'Ready' }] },
+        }),
+        stderr: '',
+      };
+    }
+    return base.az(args, opts);
+  };
+  const p = new AzureProvider(az, settings, undefined, () => PASSWORD, undefined, 1);
+  const m = await p.up(profile, ctx());
+  const script = { name: 'a.ps1', content: 'Write-Output hi' };
+  await p.exec(m, script, 'session:tester', 60);
+  await p.exec(m, script, 'session:tester', 60);
+  const creates = calls.filter((c) => c[0] === 'vm' && c[1] === 'run-command' && c[2] === 'create');
+  const scripts = creates.map((c) => (after(c, '--script') ?? '').split('/').pop());
+  // Account, sign-in setting, then the step; the second step needs neither again.
+  assert.deepEqual(scripts, [
+    'vmlab-create-user.ps1',
+    'vmlab-sign-in.ps1',
+    'vmlab-in-session-of-tester.ps1',
+    'vmlab-in-session-of-tester.ps1',
+  ]);
+  assert.equal(
+    calls.filter((c) => c[0] === 'vm' && c[1] === 'restart').length,
+    1,
+    'one restart, to sign the account in',
+  );
+  const restartAt = calls.findIndex((c) => c[0] === 'vm' && c[1] === 'restart');
+  assert.ok(
+    calls.indexOf(creates[1] as string[]) < restartAt && restartAt < calls.indexOf(creates[2] as string[]),
+  );
+  // The sign-in script gets the password as a protected parameter; the step in the session gets no password at all.
+  assert.match(creates[1]?.join(' ') ?? '', /--protected-parameters Pw=/);
+  assert.equal((creates[2]?.join(' ') ?? '').includes('Pw='), false);
+  // Only one account can be signed in at the screen on a machine.
+  await assert.rejects(
+    p.exec(m, script, 'session:other', 60),
+    /only one account can be signed in at the screen/,
+  );
 });

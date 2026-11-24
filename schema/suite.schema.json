@@ -98,7 +98,7 @@
                 "type": "array",
                 "items": {
                   "type": "string",
-                  "pattern": "^(admin|system|user:[A-Za-z0-9_.-]+)$"
+                  "pattern": "^(admin|system|(user|session):[A-Za-z0-9_.-]+)$"
                 }
               },
               "timeout_seconds": {

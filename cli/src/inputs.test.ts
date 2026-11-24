@@ -43,3 +43,20 @@ test('a missing value, an unset variable and an unknown name are each a problem 
   assert.match(resolveInputs(suite, [], { Mystery: 'x' }, {}).problems.join(), /no input named "Mystery"/);
   assert.match(resolveInputs(suite, ['Ghost'], {}, {}).problems.join(), /does not declare/);
 });
+
+test('an input written as an empty string is a choice, not a missing variable: it is simply not sent', () => {
+  const suite = {
+    name: 's',
+    description: 'x',
+    os: 'windows' as const,
+    needs: { sources: [] },
+    inputs: { Url: { default: 'https://example.test/x' }, Hash: {} },
+    steps: [],
+  };
+  const r = resolveInputs(suite, ['Url', 'Hash'], { Hash: '' }, {});
+  assert.deepEqual(r.problems, []);
+  assert.deepEqual(r.parameters, { Url: 'https://example.test/x' });
+  // An environment variable that is set but empty is still a mistake.
+  const e = resolveInputs(suite, ['Hash'], { Hash: 'env:NOPE' }, { NOPE: '' });
+  assert.match(e.problems.join('\n'), /the environment variable NOPE is not set/);
+});

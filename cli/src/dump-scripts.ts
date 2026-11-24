@@ -2,7 +2,7 @@
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { DOWNLOAD_SCRIPT, UPLOAD_SCRIPT } from './providers/azure-exchange.ts';
-import { buildRunAsUserScript, CREATE_USER_SCRIPT } from './providers/windows-user-task.ts';
+import { buildRunAsUserScript, CREATE_USER_SCRIPT, SIGN_IN_SCRIPT } from './providers/windows-user-task.ts';
 import { FETCH_SOURCE_SCRIPT } from './sources.ts';
 
 const root = process.env.VMLAB_ROOT ?? '/project';
@@ -10,7 +10,9 @@ const out = path.join(root, 'scratch');
 mkdirSync(out, { recursive: true });
 const scripts: Record<string, string> = {
   'gen-wrapper.ps1': buildRunAsUserScript('02-protect.ps1', 'Write-Output hi'),
+  'gen-wrapper-session.ps1': buildRunAsUserScript('04-run.ps1', 'Write-Output hi', 'session'),
   'gen-create-user.ps1': CREATE_USER_SCRIPT,
+  'gen-sign-in.ps1': SIGN_IN_SCRIPT,
   'gen-download.ps1': DOWNLOAD_SCRIPT,
   'gen-upload.ps1': UPLOAD_SCRIPT,
   'gen-fetch-source.ps1': FETCH_SOURCE_SCRIPT,

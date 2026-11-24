@@ -12,7 +12,13 @@ import { quiet, type Reporter } from '../progress.ts';
 import type { ExecResult, Machine, Provider, RunContext, Script, ScriptInputs } from '../provider.ts';
 import type { Profile } from '../schema.ts';
 import { AzureExchange, DOWNLOAD_SCRIPT, UPLOAD_SCRIPT } from './azure-exchange.ts';
-import { buildRunAsUserScript, CREATE_USER_SCRIPT, inputsJson, safeName } from './windows-user-task.ts';
+import {
+  buildRunAsUserScript,
+  CREATE_USER_SCRIPT,
+  inputsJson,
+  SIGN_IN_SCRIPT,
+  safeName,
+} from './windows-user-task.ts';
 
 export type AzureSettings = {
   subscription: string | null;
@@ -123,6 +129,8 @@ type Pending = {
   exchange?: AzureExchange;
   /** Extra local accounts made on this machine for `run_as: user:NAME` steps, with the passwords vmlab chose. */
   users: Map<string, string>;
+  /** The account set to sign in at the screen by itself on this machine, if any. One at a time. */
+  signedIn?: string;
 };
 
 export class AzureProvider implements Provider {
@@ -337,10 +345,14 @@ export class AzureProvider implements Provider {
     if (!m) throw new Error(`machine ${machine.id} is not one this provider made in this run`);
     const who: string[] = [];
     if (runAs === 'admin') who.push('--run-as-user', ADMIN_USER, '--run-as-password', m.password);
-    else if (runAs.startsWith('user:')) {
-      // An ordinary account, made the first time a step asks for it, with a password only this run knows. The step
-      // then runs through a scheduled task as that account, so its profile is loaded (see windows-user-task.ts).
-      const account = runAs.slice('user:'.length);
+    else if (runAs.startsWith('user:') || runAs.startsWith('session:')) {
+      // An ordinary account, made the first time a step asks for it, with a password only this run knows.
+      //   user:NAME     runs in the background as that account, with its profile loaded.
+      //   session:NAME  runs inside that account's desktop session: vmlab first makes Windows sign the account in
+      //                 at the screen by itself (a restart), which a desktop program needs.
+      // Either way the step goes through a scheduled task (see windows-user-task.ts).
+      const inSession = runAs.startsWith('session:');
+      const account = runAs.slice(runAs.indexOf(':') + 1);
       let pw = m.users.get(account);
       if (!pw) {
         pw = makePassword();
@@ -356,25 +368,44 @@ export class AzureProvider implements Provider {
         if (made.exitCode !== 0)
           throw new Error(`could not make the account ${account}: ${made.output.slice(-300)}`);
       }
+      if (inSession && m.signedIn !== account) {
+        if (m.signedIn)
+          throw new Error(
+            `only one account can be signed in at the screen on a machine: ${m.signedIn} already is, so session:${account} cannot be`,
+          );
+        const set = await this.runScript(
+          machine,
+          { name: 'vmlab-sign-in.ps1', content: SIGN_IN_SCRIPT },
+          'system',
+          300,
+          { parameters: { Name: account }, protectedParameters: { Pw: pw } },
+          false,
+        );
+        if (set.exitCode !== 0)
+          throw new Error(`could not set ${account} to sign in at the screen: ${set.output.slice(-300)}`);
+        m.signedIn = account;
+        await this.reboot(machine, 900);
+      }
       return this.runScript(
         machine,
         {
-          name: `vmlab-as-${safeName(account)}.ps1`,
-          content: buildRunAsUserScript(script.name, script.content),
+          name: `vmlab-${inSession ? 'in-session-of' : 'as'}-${safeName(account)}.ps1`,
+          content: buildRunAsUserScript(script.name, script.content, inSession ? 'session' : 'background'),
         },
         'system',
-        timeoutSeconds + 60,
+        // The wrapper waits up to five minutes for the desktop before a session step starts.
+        timeoutSeconds + (inSession ? 360 : 60),
         {
           parameters: { Name: account, TimeoutSeconds: String(timeoutSeconds) },
           protectedParameters: {
-            Pw: pw,
+            ...(inSession ? {} : { Pw: pw }),
             ArgsJson: inputsJson(inputs.parameters ?? {}, inputs.protectedParameters ?? {}),
           },
         },
         whole,
       );
     } else if (runAs !== 'system') {
-      throw new Error(`run_as "${runAs}" is not one of admin, system or user:NAME`);
+      throw new Error(`run_as "${runAs}" is not one of admin, system, user:NAME or session:NAME`);
     }
     m.steps += 1;
     const name = `vmlab-step-${m.steps}`;
@@ -401,8 +432,8 @@ export class AzureProvider implements Provider {
       if (whole && m.exchange) {
         blobs.out = `${name}-out.txt`;
         blobs.err = `${name}-err.txt`;
-        const outLink = await m.exchange.link(blobs.out, 'acw');
-        const errLink = await m.exchange.link(blobs.err, 'acw');
+        const outLink = await m.exchange.link(blobs.out, 'racw');
+        const errLink = await m.exchange.link(blobs.err, 'racw');
         opts.secrets.push(outLink, errLink);
         blobs.args = ['--output-blob-uri', outLink, '--error-blob-uri', errLink];
       }
@@ -464,21 +495,32 @@ export class AzureProvider implements Provider {
       const exitCode = view.exitCode ?? (view.executionState === 'Succeeded' ? 0 : 1);
       let said = view.output ?? '';
       let errored = view.error ?? '';
+      // What vmlab itself has to say about the result, kept apart from what the script said.
+      const notes: string[] = [];
       if (m.exchange && blobs.out) {
-        try {
-          await m.exchange.download(blobs.out, path.join(dir, 'whole-out.txt'));
-          said = await readFile(path.join(dir, 'whole-out.txt'), 'utf8');
-        } catch {
-          // The instance view's last 4 KB is still there.
-        }
-        try {
-          await m.exchange.download(blobs.err, path.join(dir, 'whole-err.txt'));
-          errored = await readFile(path.join(dir, 'whole-err.txt'), 'utf8');
-        } catch {
-          /* the same */
-        }
+        const ex = m.exchange;
+        const fromStorage = async (blob: string, file: string): Promise<string | null> => {
+          try {
+            await ex.download(blob, path.join(dir, file));
+            return await readFile(path.join(dir, file), 'utf8');
+          } catch (e) {
+            notes.push(
+              `[vmlab] could not read ${blob} from storage: ${String((e as Error).message).slice(0, 200)}`,
+            );
+            return null;
+          }
+        };
+        const wholeOut = await fromStorage(blobs.out, 'whole-out.txt');
+        const wholeErr = await fromStorage(blobs.err, 'whole-err.txt');
+        // Storage is the whole output. If it could not be read, or held nothing, keep what Run Command itself kept.
+        if (wholeOut) said = wholeOut;
+        if (wholeErr) errored = wholeErr;
+        // A step that says nothing at all is suspicious when its output was meant to go to storage. Say so: an empty
+        // output must never look like a quiet success (run 14).
+        if (!said && !errored)
+          notes.push('[vmlab] this step returned no output at all, from storage or from Run Command');
       }
-      const output = [said, errored ? `[stderr] ${errored}` : ''].filter(Boolean).join('\n');
+      const output = [said, errored ? `[stderr] ${errored}` : '', ...notes].filter(Boolean).join('\n');
       return { ran: true, exitCode, output };
     } finally {
       await rm(dir, { recursive: true, force: true });

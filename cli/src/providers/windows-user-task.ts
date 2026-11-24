@@ -31,6 +31,26 @@ Remove-Item $cfg, $db -Force -ErrorAction SilentlyContinue
 'made the ordinary account ' + $Name
 `;
 
+/**
+ * Windows PowerShell for the system account: make Windows sign this account in at the screen by itself after the next
+ * restart. A desktop program (one with windows) needs a real desktop session, and so does anything that waits for
+ * "someone has signed in". The password has to sit in the registry for Windows to use it, in clear: acceptable only
+ * because the account, its password and the machine are all made for one run and deleted with it.
+ */
+export const SIGN_IN_SCRIPT = `param([Parameter(Mandatory)][string]$Name, [Parameter(Mandatory)][string]$Pw)
+$ErrorActionPreference = 'Stop'
+$k = 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon'
+Set-ItemProperty -Path $k -Name AutoAdminLogon -Value '1'
+Set-ItemProperty -Path $k -Name DefaultUserName -Value $Name
+Set-ItemProperty -Path $k -Name DefaultDomainName -Value $env:COMPUTERNAME
+Set-ItemProperty -Path $k -Name DefaultPassword -Value $Pw
+# No first sign-in questions and no welcome animation: nobody is there to answer or watch.
+New-Item -Path 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\OOBE' -Force | Out-Null
+Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\OOBE' -Name DisablePrivacyExperience -Value 1 -Type DWord
+Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Name EnableFirstLogonAnimation -Value 0 -Type DWord
+'set to sign in ' + $Name + ' at the screen after the next restart'
+`;
+
 /** A file name that is safe to write on the machine and to put in a command line. */
 export const safeName = (name: string): string => name.replace(/[^A-Za-z0-9_.-]/g, '_');
 
@@ -47,10 +67,32 @@ export function inputsJson(
  * account (and the system) can use, register a task for the account, run it, wait, print what it printed, clean up.
  * `scriptName` and `scriptText` are the step's own; the text is embedded as base64 so no quoting can break it.
  */
-export function buildRunAsUserScript(scriptName: string, scriptText: string): string {
+export function buildRunAsUserScript(
+  scriptName: string,
+  scriptText: string,
+  mode: 'background' | 'session' = 'background',
+): string {
   const b64 = Buffer.from(scriptText, 'utf8').toString('base64');
   const name = safeName(scriptName);
-  return `param([Parameter(Mandatory)][string]$Name, [Parameter(Mandatory)][string]$Pw, [string]$ArgsJson = '{}', [int]$TimeoutSeconds = 600)
+  // background: Windows logs the account on as a batch job (a stored password), with its profile loaded.
+  // session:    the task runs inside the desktop session of the account that is signed in at the screen.
+  const register =
+    mode === 'session'
+      ? `$principal = New-ScheduledTaskPrincipal -UserId $account -LogonType Interactive -RunLevel Limited
+Register-ScheduledTask -TaskName $task -Action $action -Settings $settings -Principal $principal | Out-Null`
+      : 'Register-ScheduledTask -TaskName $task -Action $action -Settings $settings -User $account -Password $Pw -RunLevel Limited | Out-Null';
+  const waitForDesktop =
+    mode === 'session'
+      ? `# The account signs in by itself after a restart, which can take a minute or more. Wait for its desktop.
+$t0 = Get-Date
+do {
+  $there = @(Get-Process explorer -IncludeUserName -ErrorAction SilentlyContinue | Where-Object { $_.UserName -eq $account }).Count -gt 0
+  if (-not $there) { Start-Sleep -Seconds 5 }
+} while ((-not $there) -and ((Get-Date) - $t0).TotalSeconds -lt 300)
+if (-not $there) { "FAIL $Name is not signed in at the screen after 300 seconds, so the step was not started"; exit 126 }
+`
+      : '';
+  return `param([Parameter(Mandatory)][string]$Name, [string]$Pw = '', [string]$ArgsJson = '{}', [int]$TimeoutSeconds = 600)
 $ErrorActionPreference = 'Stop'
 $ScriptB64 = '${b64}'
 $ScriptName = '${name}'
@@ -58,7 +100,7 @@ $id = [guid]::NewGuid().ToString('N').Substring(0, 8)
 $dir = "C:\\vmlab\\tasks\\$id"
 New-Item -ItemType Directory -Force $dir | Out-Null
 $account = "$env:COMPUTERNAME\\$Name"
-& icacls.exe $dir /inheritance:r /grant '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' "\${account}:(OI)(CI)M" | Out-Null
+${waitForDesktop}& icacls.exe $dir /inheritance:r /grant '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' "\${account}:(OI)(CI)M" | Out-Null
 [IO.File]::WriteAllBytes("$dir\\$ScriptName", [Convert]::FromBase64String($ScriptB64))
 [IO.File]::WriteAllText("$dir\\args.json", $ArgsJson)
 # The runner starts a fresh PowerShell on the step's script, so its exit code is what a plain step would give.
@@ -75,11 +117,11 @@ exit $LASTEXITCODE
 $task = "vmlab-$id"
 # The Task Scheduler's own log says why a task does not start. It is off by default, so turn it on first.
 & wevtutil.exe sl 'Microsoft-Windows-TaskScheduler/Operational' /e:true 2>$null | Out-Null
-$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -ExecutionPolicy Bypass -File \`"$dir\\runner.ps1\`""
+$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \`"$dir\\runner.ps1\`""
 # Every setting that can hold a task back is set on purpose, never left to a default: power, missed starts, a second
 # instance, and a time limit so Windows itself ends a step that hangs.
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -MultipleInstances IgnoreNew -Priority 4 -ExecutionTimeLimit (New-TimeSpan -Seconds ($TimeoutSeconds + 30))
-Register-ScheduledTask -TaskName $task -Action $action -Settings $settings -User $account -Password $Pw -RunLevel Limited | Out-Null
+${register}
 
 function Show-Why {
   # What the machine can tell us, so a step that does not start is explained by the record and not guessed at.
